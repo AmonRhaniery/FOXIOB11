@@ -54,7 +54,6 @@ public class FoxInstances {
     if (logger.isTraceEnabled()) {
       logger.trace(toolResults);
     }
-    logger.info("TESTEtoolResults "+toolResults);
     // read oracle
     final Map<String, String> oracelToken = new HashMap<>();
     if (oracle != null) {

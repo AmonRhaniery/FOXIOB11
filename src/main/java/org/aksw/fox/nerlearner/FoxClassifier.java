@@ -135,8 +135,6 @@ public class FoxClassifier {
   public Set<Entity> classify(final IPostProcessing pp) {
     LOG.info("classify ...");
 
-    LOG.info("getLabeledToolResults "+pp.getLabeledToolResults());
-
     // rewrite to use labels
     initInstances(pp.getLabeledInput(), pp.getLabeledToolResults(), null);
 

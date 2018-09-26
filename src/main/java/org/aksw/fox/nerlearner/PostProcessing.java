@@ -138,8 +138,6 @@ public class PostProcessing implements IPostProcessing {
         if (LOG.isDebugEnabled())
             LOG.debug(toolResults);
 
-        LOG.info(toolResults);
-
 
         // for each tool
         for (Entry<String, Set<Entity>> entry : toolResults.entrySet()) {
@@ -155,13 +153,11 @@ public class PostProcessing implements IPostProcessing {
 
             if (LOG.isTraceEnabled())
                 LOG.trace(resutlsMap);
-            LOG.info("resutlsMap "+resutlsMap);
             
             // label map
             resutlsMap = getLabeledMap(resutlsMap);
             if (LOG.isTraceEnabled())
                 LOG.trace(resutlsMap);
-            LOG.info("resutlsMap after getLabeledMap "+resutlsMap);
 
             // label to entity
             Set<Entity> labeledEntities = new HashSet<>();
@@ -170,7 +166,6 @@ public class PostProcessing implements IPostProcessing {
                         new Entity(e.getKey(), e.getValue(), Entity.DEFAULT_RELEVANCE, entry.getKey())
                         );
             }
-            LOG.info("labeledEntities "+labeledEntities);
 
             // add to labeled result map
             String toolName = entry.getKey();
@@ -185,7 +180,7 @@ public class PostProcessing implements IPostProcessing {
         return toolResults;
     }
 
-    /**
+     /**
      * Clean the data. We can't have B-types after I-types wthout punctuation or I-types at the beginning
      */ 
     public void cleanData(Map<String,String> labeledEntityToken, Map<String, String> labeledInput){
@@ -202,7 +197,7 @@ public class PostProcessing implements IPostProcessing {
         labeledEntityToken.clear();
         
 
-        LOG.info("CLEANING \""+input+"\": "+wordsOfInput+"\n");
+        LOG.info("CLEANING \""+input+"\"");
 
         //Start analysing the each sentence
         ArrayList<String> keysOfWordsOfInput = new ArrayList<>(wordsOfInput.keySet());
@@ -253,9 +248,34 @@ public class PostProcessing implements IPostProcessing {
                 isNextProperName=false;
             }
 
+            //in case we have a string not made by letters
+            if(!token.equals("")){
+                if(!Character.isLetter(token.charAt(0))){
+                    //LOG.info("The token \""+token+"\" is not made by letters");
+                    type="OUTSIDE";
+                    category="OUTSIDE";
+                    tag="O";
+                    label="";
+                    token="punctuation";
+                    isProperName=false;
+                }
+            }
+            if(!nextToken.equals("")){
+                if(!Character.isLetter(nextToken.charAt(0))){
+                    //LOG.info("The token \""+nextToken+"\" is not made by letters");
+                    nextType="OUTSIDE";
+                    nextCategory="OUTSIDE";
+                    nextTag="O";
+                    nextLabel=" ";
+                    nextToken="punctuation";
+                    isNextProperName=false;
+                }
+            }
+
+
             //in case we have a punctuation
             if(index!=nextIndex-token.length()-1){
-                LOG.info("We have a punctuation between \""+token+"\" and \""+nextToken+"\"");
+                //LOG.info("We have a punctuation between \""+token+"\" and \""+nextToken+"\"");
                 type="OUTSIDE";
                 category="OUTSIDE";
                 tag="O";
@@ -263,7 +283,20 @@ public class PostProcessing implements IPostProcessing {
                 token="punctuation";
                 isProperName=false;
             }
+            //if the whole word is in upper letters, we cannot evaluate the proper name
+            if(token.equals(token.toUpperCase())){
+                isProperName=false;
+                //LOG.info("MAIUSCULAS "+token);
+            }
+            if(token.equals(nextToken.toUpperCase())){
+                isNextProperName=false;
+                //LOG.info("MAIUSCULAS "+nextToken);
 
+            }
+
+            //clean the log
+            String badwords[] = {"When","During","Later","While","As","An","At","This","In","President","Minister","All","After","One","Professor","The","She","He","It","By","Although","Though","From","Since","These","Those","That","On","I","Am","They","His","Her","Their","You","URL"};
+            
             //CLEANING PART
             if(tag.contains("B") && nextTag.contains("O")){
                 //change B
@@ -272,7 +305,7 @@ public class PostProcessing implements IPostProcessing {
                 //change O
                 if (isNextProperName){
                     final String correctType = "I"+category;
-                    LOG.info("Token \""+nextToken+"\" has no type. Correcting to type \""+correctType+"\"");
+                    LOG.info("MUDANÇA ERROR Token \""+nextToken+"\" has no type. Correcting to type \""+correctType+"\" at the sentence: "+input);
                     labeledEntityToken.put(nextLabel,correctType);
                     wordsOfInput.put(nextLabel,correctType);
                     if(i-2>=0)
@@ -289,7 +322,7 @@ public class PostProcessing implements IPostProcessing {
                 //change B
                 if (nextCategory.contains("ORGANIZATION") && !category.contains("ORGANIZATION")){
                     final String correctType = "B"+nextCategory;
-                    LOG.info("Token \""+token+"\" probably belongs to an Organization Name. Correcting to type \""+correctType+"\"");
+                    LOG.info("MUDANÇA Token \""+token+"\" probably belongs to an Organization Name. Correcting to type \""+correctType+"\" at the sentence: "+input);
                     labeledEntityToken.put(label,correctType);
                     wordsOfInput.put(label,correctType);
                     if(i-2>=0)
@@ -305,7 +338,7 @@ public class PostProcessing implements IPostProcessing {
                 //change I
                 if(!category.contains(nextCategory)){
                     final String correctType = "I"+category;
-                    LOG.info("Tokens \""+token+"\" and \""+nextToken+"\" are with different types. Correcting \""+nextToken+"\" from \""+nextType+"\" to \""+correctType+"\"");
+                    LOG.info("MUDANÇA Tokens \""+token+"\" and \""+nextToken+"\" are with different types. Correcting \""+nextToken+"\" from \""+nextType+"\" to \""+correctType+"\" at the sentence: "+input);
                     labeledEntityToken.put(nextLabel, correctType);
                     wordsOfInput.put(nextLabel,correctType); 
                     if(i-2>=0)
@@ -324,7 +357,7 @@ public class PostProcessing implements IPostProcessing {
                     if (nextCategory.contains("ORGANIZATION") || category.contains("ORGANIZATION")){
                         final String correctType1 = "BORGANIZATION";
                         final String correctType2 = "IORGANIZATION";
-                        LOG.info("Tokens \""+token+"\" and \""+ nextToken+"\" probably belongs to an Organization Name. Correcting both types to \""+correctType1+"\" and \""+correctType2+"\"");
+                        LOG.info("MUDANÇA Tokens \""+token+"\" and \""+ nextToken+"\" probably belongs to an Organization Name. Correcting both types to \""+correctType1+"\" and \""+correctType2+"\" at the sentence: "+input);
                         labeledEntityToken.put(label,correctType1);
                         wordsOfInput.put(label,correctType1);
                         labeledEntityToken.put(nextLabel,correctType2);
@@ -336,7 +369,7 @@ public class PostProcessing implements IPostProcessing {
                                 i=i-1; 
                         continue;
                     } else {
-                        LOG.info("CATEGORIAS DIFERENTES entre \""+token+"\" e \""+nextToken+"\"");
+                        LOG.info("MISSING categorias diferentes entre dois Bs na frase "+input);
                         labeledEntityToken.put(label,type);
                     }
                 } else {
@@ -361,6 +394,16 @@ public class PostProcessing implements IPostProcessing {
                 labeledEntityToken.put(label,type);
 
                 //change O
+                if(isNextProperName){
+                    boolean badword = false;
+                    for(int x=0;x<badwords.length;x++){
+                        if(token.contains(badwords[x]))
+                            badword=true;
+                    }
+                    if(!badword)    
+                        LOG.info("MISSING token: "+nextToken+" sem categoria após \""+token+"\" na frase "+input);
+
+                }
                 
             }
             if(tag.contains("I") && nextTag.contains("I")){
@@ -368,7 +411,7 @@ public class PostProcessing implements IPostProcessing {
                 if(!category.contains(nextCategory)){
                     if (nextCategory.contains("ORGANIZATION") || category.contains("ORGANIZATION")){
                         final String correctType = "IORGANIZATION";
-                        LOG.info("Tokens \""+token+"\" and \""+ nextToken+"\" probably belongs to an Organization Name. Correcting both types to \""+correctType+"\".");
+                        LOG.info("MUDANÇA Tokens \""+token+"\" and \""+ nextToken+"\" probably belongs to an Organization Name. Correcting both types to \""+correctType+"\". at the sentence: "+input);
                         labeledEntityToken.put(label,correctType);
                         wordsOfInput.put(label,correctType);
                         labeledEntityToken.put(nextLabel,correctType);
@@ -380,7 +423,7 @@ public class PostProcessing implements IPostProcessing {
                             i   =i-1; 
                         continue;
                     } else {
-                        LOG.info("CATEGORIAS DIFERENTES entre \""+token+"\" e \""+nextToken+"\"");
+                        LOG.info("MISSING categorias diferentes entre dois Is na frase "+input);
                         labeledEntityToken.put(label,type);
                     }
                 } else {
@@ -395,7 +438,7 @@ public class PostProcessing implements IPostProcessing {
                 
                 //change B
                 final String correctType="I"+category;
-                LOG.info("Token \""+nextToken+"\" has wrong type "+nextType+". Correcting to "+correctType);
+                LOG.info("MUDANÇA Token \""+nextToken+"\" has wrong type "+nextType+". Correcting to "+correctType+" at the sentence: "+input);
                 labeledEntityToken.put(nextLabel,correctType);
                 wordsOfInput.put(nextLabel,correctType);
                 if(i-2>=0)
@@ -407,16 +450,30 @@ public class PostProcessing implements IPostProcessing {
             }
             if(tag.contains("O") && nextTag.contains("O")){
                 //change O
-                if(isProperName)
-                    LOG.info("Token \""+token+"\" has no type.");
-                if(isNextProperName)
-                    LOG.info("Token \""+nextToken+"\" has no type.");     
+                if(isProperName){
+                    boolean badword = false;
+                    for(int x=0;x<badwords.length;x++){
+                        if(token.contains(badwords[x]))
+                            badword=true;
+                    }
+                    if(!badword)    
+                    LOG.info("MISSING Token \""+token+"\" has no type at the sentence: "+input);     
+                }
+                if(isNextProperName){
+                    boolean badword = false;
+                    for(int x=0;x<badwords.length;x++){
+                        if(nextToken.contains(badwords[x]))
+                            badword=true;
+                    }
+                    if(!badword)    
+                    LOG.info("MISSING Token \""+nextToken+"\" has no type at the sentence: "+input);     
+                }     
             }
             if(tag.contains("O") && nextTag.contains("I")){
                 //change O
                 if(isProperName){
                     final String correctType="B"+nextCategory;
-                    LOG.info("Token \""+token+"\" has no type. Correcting to "+correctType);
+                    LOG.info("MUDANÇA Token \""+token+"\" has no type. Correcting to "+correctType+" at the sentence: "+input);
                     labeledEntityToken.put(label,correctType);
                     wordsOfInput.put(label,correctType);
                     if(i-2>=0)
@@ -442,14 +499,13 @@ public class PostProcessing implements IPostProcessing {
                             i=i-1; 
                     continue;
                 } else {
-                    LOG.info("Token \""+nextToken+"\" is starting with an I and its not a proper name. Removing it...");
+                    LOG.info("MUDANÇA Token \""+nextToken+"\" is starting with an I and its not a proper name. Removing it... at the sentence: "+input);
                     wordsOfInput.put(nextLabel,"OUTSIDE");
                 }
                 
             }
             if(tag.contains("O") && nextTag.contains("B")){
                 //change O
-                LOG.info("Token \""+token+"\" should be corrected?");
 
                 //change B
                 labeledEntityToken.put(nextLabel,nextType);
@@ -493,7 +549,7 @@ public class PostProcessing implements IPostProcessing {
         }
 
         //clean data
-        //cleanData(labeledEntityToken, wordsOfInput);
+        cleanData(labeledEntityToken, wordsOfInput);
 
 
         // labeledEntityToken to mwu
